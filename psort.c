@@ -11,6 +11,14 @@ struct key_value {
   char* value; // start of 100 bytes
 };
 
+// parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare);
+void parallel_sort(struct key_value *input_kv, size_t number_of_records, size_t size,
+                  int (*compar)(const void *, const void *))
+{
+    return qsort(input_kv, number_of_records, size, compar);
+}
+
+
 //define compare function according to key converted to int
 int compare(const void *a, const void *b) {
     struct key_value *ia = (struct key_value *)a;
@@ -52,7 +60,6 @@ int main(int argc, char *argv[])
         return 1;
     }
     unsigned int fileSize = sb.st_size;
-    printf("file size: %d\n", fileSize);
 
     // Memory map the input file
     void *input_data = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, input_fd, 0);
@@ -88,8 +95,7 @@ int main(int argc, char *argv[])
         close(output_fd);
         return 1;
     }
-    //print file size
-    // printf("file size: %d\n", fileSize);
+    
     void *ptr = input_data;
     struct key_value* input_kv = malloc(fileSize/100 * sizeof(struct key_value));
     for (int i = 0; i < fileSize/100; i++) {
@@ -99,18 +105,15 @@ int main(int argc, char *argv[])
         ptr += 100;
         // printf("key: %d, value: %s\n", key, input_kv[i].value);
     }
-    //print something
-    // printf("meow\n");
+
     // sort value according to key
-    qsort(input_kv, fileSize/100, sizeof(struct key_value), compare);
+    parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare);
 
     // write to output_data according to input_kv
     for (int i = 0; i < fileSize/100; i++) {
         memcpy(output_data + i*100, input_kv[i].value, 100);
     }
     
-    // memcpy(output_data, input_data, fileSize);
-
     // Sync output file to disk
     if (msync(output_data, fileSize, MS_SYNC) == -1) {
         perror("Error syncing output file to disk");

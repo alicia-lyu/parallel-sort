@@ -1,4 +1,6 @@
-psort:
+.PHONY: clean
+
+psort: psort.c
 	gcc psort.c -Wall -Werror -pthread -O -o psort
 
 clean:

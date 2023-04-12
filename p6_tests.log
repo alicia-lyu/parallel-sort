@@ -1,10 +1,14 @@
-Wed Apr 12 04:05:26 PM CDT 2023
+Wed Apr 12 04:07:54 PM CDT 2023
 make: 'psort' is up to date.
 10+0 records in
 10+0 records out
-10000000 bytes (10 MB, 9.5 MiB) copied, 0.0236675 s, 423 MB/s
+10000000 bytes (10 MB, 9.5 MiB) copied, 0.0243186 s, 411 MB/s
 Test 1
 100+0 records in
 100+0 records out
-100000000 bytes (100 MB, 95 MiB) copied, 0.248195 s, 403 MB/s
+100000000 bytes (100 MB, 95 MiB) copied, 0.225966 s, 443 MB/s
 Test 2
+1000+0 records in
+1000+0 records out
+1000000000 bytes (1.0 GB, 954 MiB) copied, 2.28237 s, 438 MB/s
+Test 3

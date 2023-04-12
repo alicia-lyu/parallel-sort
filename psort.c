@@ -5,22 +5,22 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <pthread.h>
 
 struct key_value {
   int key;
   char* value; // start of 100 bytes
 };
 
-// parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare, numThreads);
-void parallel_sort(struct key_value *input_kv, size_t number_of_records, size_t size,
-                  int (*compar)(const void *, const void *), int numThreads)
-{
-    return qsort(input_kv, number_of_records, size, compar);
-}
+size_t size_of_record = sizeof(struct key_value);
 
+struct qsort_args {
+    struct key_value * base; 
+    size_t nel;
+};
 
 //define compare function according to key converted to int
-int compare(const void *a, const void *b) {
+static int compare(const void *a, const void *b) {
     struct key_value *ia = (struct key_value *)a;
     struct key_value *ib = (struct key_value *)b;
     if (ia->key < ib->key) {
@@ -31,6 +31,73 @@ int compare(const void *a, const void *b) {
         return 0;
     }
 }
+
+// merge two sorted arrays
+void merge(struct key_value *input_kv, int start, int mid, int end, struct key_value *buffer)
+{
+    int i = start; // index of left array
+    int j = mid + 1; // index of right array
+    int k = 0; // index of buffer
+    while (i <= mid && j <= end) { 
+        if (compare(input_kv + i, input_kv + j) < 0) {
+            buffer[k++] = input_kv[i++];
+        } else {
+            buffer[k++] = input_kv[j++];
+        }
+    }
+    while (i <= mid) {
+        buffer[k++] = input_kv[i++];
+    }
+    while (j <= end) {
+        buffer[k++] = input_kv[j++];
+    }
+    memcpy(input_kv + start * size_of_record, buffer, (end - start + 1) * size_of_record);
+}
+
+void qsort_enclosed(void *args) {
+    struct qsort_args * range = (struct qsort_args *) args;
+    struct key_value * base = range->base;
+    size_t nel = range->nel;
+    qsort(base, nel, size_of_record, compare);
+}
+
+// int get_merge_num_round(int numChunks) {
+//     int numChunks_new;
+//     int numRounds = 0;
+//     while (numChunks > 1) {
+//         numRounds++;
+//         numChunks_new = numChunks / 2;
+//         if (numChunks % 2) numChunks_new++;
+//         numChunks = numChunks_new;
+//     }
+// };
+
+// parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare, numThreads);
+void parallel_sort(struct key_value *input_kv, size_t numRecords, int numThreads)
+{
+    int numRecords_per_chunk = numRecords / numThreads;
+    int numRecords_last_chunk = numRecords - numRecords_per_chunk * (numThreads - 1);
+    
+    // assign each thread a chunk of data and use qsort to sort
+    pthread_t * pthreads = malloc(sizeof(pthread_t) * numThreads);
+    for (int i = 0; i < numThreads; i++) {
+        struct qsort_args range;
+        range.base = i * numRecords_per_chunk;
+        range.nel = numRecords_per_chunk;
+        if (i == numThreads -1) {
+            range.nel = numRecords_last_chunk;
+        }
+        pthread_create(&pthreads[i], NULL, qsort_enclosed, &range);
+    }
+    // join all the threads
+    
+    
+    // merge the sorted chunks in the parent thread
+    
+    
+    
+}
+
 
 // Your parallel sort (`psort`) will take three command-line arguments.
 // input                  The input file to read records for sort
@@ -103,11 +170,10 @@ int main(int argc, char *argv[])
         input_kv[i].key = key;
         input_kv[i].value = ptr;
         ptr += 100;
-        // printf("key: %d, value: %s\n", key, input_kv[i].value);
     }
 
     // sort value according to key
-    parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare, numThreads);
+    parallel_sort(input_kv, fileSize/100, numThreads);
 
     // write to output_data according to input_kv
     for (int i = 0; i < fileSize/100; i++) {

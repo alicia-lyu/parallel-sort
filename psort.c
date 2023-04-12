@@ -11,9 +11,9 @@ struct key_value {
   char* value; // start of 100 bytes
 };
 
-// parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare);
+// parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare, numThreads);
 void parallel_sort(struct key_value *input_kv, size_t number_of_records, size_t size,
-                  int (*compar)(const void *, const void *))
+                  int (*compar)(const void *, const void *), int numThreads)
 {
     return qsort(input_kv, number_of_records, size, compar);
 }
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     }
     char* input = argv[1];
     char* output = argv[2];
-    // int numThreads = atoi(argv[3]);
+    int numThreads = atoi(argv[3]);
 
     // open input file
     int input_fd = open(input, O_RDONLY);
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
     }
 
     // sort value according to key
-    parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare);
+    parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare, numThreads);
 
     // write to output_data according to input_kv
     for (int i = 0; i < fileSize/100; i++) {

@@ -1,0 +1,50 @@
+Tue Apr 11 11:50:54 PM CDT 2023
+make: 'psort' is up to date.
+10+0 records in
+10+0 records out
+10000000 bytes (10 MB, 9.5 MiB) copied, 0.037893 s, 264 MB/s
+Test 1
+file size: 10000000
+file size: 10000000
+file size: 10000000
+file size: 10000000
+file size: 10000000
+file size: 10000000
+file size: 10000000
+file size: 10000000
+100+0 records in
+100+0 records out
+100000000 bytes (100 MB, 95 MiB) copied, 0.228452 s, 438 MB/s
+Test 2
+file size: 100000000
+file size: 100000000
+file size: 100000000
+file size: 100000000
+file size: 100000000
+file size: 100000000
+file size: 100000000
+file size: 100000000
+1000+0 records in
+1000+0 records out
+1000000000 bytes (1.0 GB, 954 MiB) copied, 2.122 s, 471 MB/s
+Test 3
+file size: 1000000000
+file size: 1000000000
+file size: 1000000000
+file size: 1000000000
+file size: 1000000000
+file size: 1000000000
+file size: 1000000000
+file size: 1000000000
+4000+0 records in
+4000+0 records out
+4000000000 bytes (4.0 GB, 3.7 GiB) copied, 8.60687 s, 465 MB/s
+Test 4
+file size: -294967296
+file size: -294967296
+file size: -294967296
+file size: -294967296
+file size: -294967296
+file size: -294967296
+file size: -294967296
+file size: -294967296

@@ -51,30 +51,31 @@ void merge(struct key_value *input_kv, int start1, int end1, int start2, int end
     while (j <= end2) {
         buffer[k++] = input_kv[j++];
     }
-    memcpy(input_kv + start1 * size_of_record, buffer, (end2 - start1 + 1) * size_of_record);
+    memcpy(input_kv + start1 * size_of_record, buffer, (end1 - start1 + 1) * size_of_record);
+    memcpy(input_kv + start2 * size_of_record, buffer, (end2 - start2 + 1) * size_of_record);
 }
 
 
-void merge(struct key_value *input_kv, int start1, int mid, int end, struct key_value *buffer)
-{
-    int i = start; // index of left array
-    int j = mid + 1; // index of right array
-    int k = 0; // index of buffer
-    while (i <= mid && j <= end) { 
-        if (compare(input_kv + i, input_kv + j) < 0) {
-            buffer[k++] = input_kv[i++];
-        } else {
-            buffer[k++] = input_kv[j++];
-        }
-    }
-    while (i <= mid) {
-        buffer[k++] = input_kv[i++];
-    }
-    while (j <= end) {
-        buffer[k++] = input_kv[j++];
-    }
-    memcpy(input_kv + start * size_of_record, buffer, (end - start + 1) * size_of_record);
-}
+// void merge(struct key_value *input_kv, int start1, int mid, int end, struct key_value *buffer)
+// {
+//     int i = start; // index of left array
+//     int j = mid + 1; // index of right array
+//     int k = 0; // index of buffer
+//     while (i <= mid && j <= end) { 
+//         if (compare(input_kv + i, input_kv + j) < 0) {
+//             buffer[k++] = input_kv[i++];
+//         } else {
+//             buffer[k++] = input_kv[j++];
+//         }
+//     }
+//     while (i <= mid) {
+//         buffer[k++] = input_kv[i++];
+//     }
+//     while (j <= end) {
+//         buffer[k++] = input_kv[j++];
+//     }
+//     memcpy(input_kv + start * size_of_record, buffer, (end - start + 1) * size_of_record);
+// }
 
 void qsort_enclosed(void *args) {
     struct qsort_args * range = (struct qsort_args *) args;

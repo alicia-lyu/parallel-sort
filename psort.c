@@ -60,8 +60,8 @@ void merge(struct run run1, struct run run2, struct key_value *buffer)
     while (j <= run2.end) {
         buffer[k++] = input_kv[j++];
     }
-    memcpy(input_kv + run1.start * size_of_record, buffer, (run1.start - run1.end + 1) * size_of_record);
-    memcpy(input_kv + run2.start * size_of_record, buffer, (run2.start - run2.end + 1) * size_of_record);
+    memcpy(input_kv + run1.start, buffer, (run1.start - run1.end + 1) * size_of_record);
+    memcpy(input_kv + run2.start, buffer, (run2.start - run2.end + 1) * size_of_record);
 }
 
 

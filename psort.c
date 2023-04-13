@@ -12,11 +12,20 @@ struct key_value {
   char* value; // start of 100 bytes
 };
 
+struct key_value * input_kv;
+
 size_t size_of_record = sizeof(struct key_value);
 
 struct qsort_args {
     struct key_value * base; 
     size_t nel;
+};
+
+// in each pass, merge multiple runs by 2
+struct run {
+    int start; 
+    int end; 
+    // end - start = numRecords_in_run
 };
 
 //define compare function according to key converted to int
@@ -33,27 +42,40 @@ static int compare(const void *a, const void *b) {
 }
 
 // merge two sorted arrays
-void merge(struct key_value *input_kv, int start1, int end1, int start2, int end2, struct key_value *buffer)
-{
-    int i = start1; // index of left array
-    int j = start2; // index of right array
+void merge(struct run run1, struct run run2, struct key_value *buffer)
+{   
+    int i = run1.start; // index of left array
+    int j = run2.start; // index of right array
     int k = 0; // index of buffer
-    while (i <= end1 && j <= end2) { 
+    while (i <= run1.end && j <= run2.end) { 
         if (compare(input_kv + i, input_kv + j) < 0) {
             buffer[k++] = input_kv[i++];
         } else {
             buffer[k++] = input_kv[j++];
         }
     }
-    while (i <= end1) {
+    while (i <= run1.end) {
         buffer[k++] = input_kv[i++];
     }
-    while (j <= end2) {
+    while (j <= run2.end) {
         buffer[k++] = input_kv[j++];
     }
-    memcpy(input_kv + start1 * size_of_record, buffer, (end1 - start1 + 1) * size_of_record);
-    memcpy(input_kv + start2 * size_of_record, buffer, (end2 - start2 + 1) * size_of_record);
+    memcpy(input_kv + run1.start * size_of_record, buffer, (run1.start - run1.end + 1) * size_of_record);
+    memcpy(input_kv + run2.start * size_of_record, buffer, (run2.start - run2.end + 1) * size_of_record);
 }
+
+
+struct run* runs mergeAll(struct run * runs, int numRuns) {
+    int i;
+    for(i = 0; i += 2; i < numRuns) {
+        struct run run1 = runs[i*2];
+        struct run run2 = runs[i*2+1];
+        struct key_value *buffer = malloc(size_of_record * (run1.start - run1.end + run2.start - run2.end));
+        // To-do: allocate pthread to do this
+        merge(run1, run2, buffer); // the last run might not have another run to merge with
+    }
+    // To-do: return runs (or modify runs in place?)
+};
 
 
 // void merge(struct key_value *input_kv, int start1, int mid, int end, struct key_value *buffer)
@@ -95,21 +117,25 @@ void qsort_enclosed(void *args) {
 //     }
 // };
 
-// parallel_sort(input_kv, fileSize/100, sizeof(struct key_value), compare, numThreads);
-void parallel_sort(struct key_value *input_kv, size_t numRecords, int numThreads)
+// parallel_sort(fileSize/100, numThreads);
+void parallel_sort(size_t numRecords, int numThreads)
 {
     int numRecords_per_chunk = numRecords / numThreads;
     int numRecords_last_chunk = numRecords - numRecords_per_chunk * (numThreads - 1);
     
     // assign each thread a chunk of data and use qsort to sort
+    struct run * runs = malloc(sizeof(struct run) * numThreads);
+    int numRuns = numThreads;
     pthread_t * pthreads = malloc(sizeof(pthread_t) * numThreads);
     for (int i = 0; i < numThreads; i++) {
         struct qsort_args range;
         range.base = i * numRecords_per_chunk;
+        runs[i].start = range.base;
         range.nel = numRecords_per_chunk;
         if (i == numThreads -1) {
             range.nel = numRecords_last_chunk;
         }
+        runs[i].end = runs[i].start + range.nel;
         pthread_create(&pthreads[i], NULL, qsort_enclosed, &range);
     }
     // join all the thread
@@ -117,9 +143,10 @@ void parallel_sort(struct key_value *input_kv, size_t numRecords, int numThreads
         pthread_join(pthreads[i], NULL);
     }
     
-    // merge the sorted chunks in the parent thread
-    for (int i = )
-    
+    // To-do: merge the sorted chunks in the parent thread through a few passes
+    while (numRuns > 1) {
+        // one pass
+    }
     
 }
 
@@ -189,7 +216,7 @@ int main(int argc, char *argv[])
     }
     
     void *ptr = input_data;
-    struct key_value* input_kv = malloc(fileSize/100 * sizeof(struct key_value));
+    input_kv = malloc(fileSize/100 * sizeof(struct key_value));
     for (int i = 0; i < fileSize/100; i++) {
         int key = *(int*)ptr;
         input_kv[i].key = key;
@@ -198,7 +225,7 @@ int main(int argc, char *argv[])
     }
 
     // sort value according to key
-    parallel_sort(input_kv, fileSize/100, numThreads);
+    parallel_sort(fileSize/100, numThreads);
 
     // write to output_data according to input_kv
     for (int i = 0; i < fileSize/100; i++) {

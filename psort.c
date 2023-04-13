@@ -33,7 +33,29 @@ static int compare(const void *a, const void *b) {
 }
 
 // merge two sorted arrays
-void merge(struct key_value *input_kv, int start, int mid, int end, struct key_value *buffer)
+void merge(struct key_value *input_kv, int start1, int end1, int start2, int end2, struct key_value *buffer)
+{
+    int i = start1; // index of left array
+    int j = start2; // index of right array
+    int k = 0; // index of buffer
+    while (i <= end1 && j <= end2) { 
+        if (compare(input_kv + i, input_kv + j) < 0) {
+            buffer[k++] = input_kv[i++];
+        } else {
+            buffer[k++] = input_kv[j++];
+        }
+    }
+    while (i <= end1) {
+        buffer[k++] = input_kv[i++];
+    }
+    while (j <= end2) {
+        buffer[k++] = input_kv[j++];
+    }
+    memcpy(input_kv + start1 * size_of_record, buffer, (end2 - start1 + 1) * size_of_record);
+}
+
+
+void merge(struct key_value *input_kv, int start1, int mid, int end, struct key_value *buffer)
 {
     int i = start; // index of left array
     int j = mid + 1; // index of right array
@@ -89,11 +111,13 @@ void parallel_sort(struct key_value *input_kv, size_t numRecords, int numThreads
         }
         pthread_create(&pthreads[i], NULL, qsort_enclosed, &range);
     }
-    // join all the threads
-    
+    // join all the thread
+    for (int i = 0; i < numThreads; i++) {
+        pthread_join(pthreads[i], NULL);
+    }
     
     // merge the sorted chunks in the parent thread
-    
+    for (int i = )
     
     
 }

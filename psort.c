@@ -61,7 +61,7 @@ void merge(struct run run1, struct run run2, struct key_value *buffer)
         buffer[k++] = input_kv[j++];
     }
     memcpy(input_kv + run1.start, buffer, (run1.start - run1.end + 1) * size_of_record);
-    memcpy(input_kv + run2.start, buffer, (run2.start - run2.end + 1) * size_of_record);
+    memcpy(input_kv + run2.start, buffer + (run1.start - run1.end + 1), (run2.start - run2.end + 1) * size_of_record); 
 }
 
 
@@ -118,7 +118,7 @@ void qsort_enclosed(void *args) {
 // };
 
 // parallel_sort(fileSize/100, numThreads);
-void parallel_sort(size_t numRecords, int numThreads)
+void parallel_sort(struct key_value * input_kv, size_t numRecords, int numThreads)
 {
     int numRecords_per_chunk = numRecords / numThreads;
     int numRecords_last_chunk = numRecords - numRecords_per_chunk * (numThreads - 1);
@@ -129,13 +129,13 @@ void parallel_sort(size_t numRecords, int numThreads)
     pthread_t * pthreads = malloc(sizeof(pthread_t) * numThreads);
     for (int i = 0; i < numThreads; i++) {
         struct qsort_args range;
-        range.base = i * numRecords_per_chunk;
-        runs[i].start = range.base;
-        range.nel = numRecords_per_chunk;
-        if (i == numThreads -1) {
+        range.base = input_kv + i * numRecords_per_chunk; // address of the first element in the chunk
+        runs[i].start = i * numRecords_per_chunk; // index of the first element in the chunk
+        range.nel = numRecords_per_chunk; // number of elements in the chunk
+        if (i == numThreads - 1) {
             range.nel = numRecords_last_chunk;
         }
-        runs[i].end = runs[i].start + range.nel;
+        runs[i].end = runs[i].start + range.nel; // index of the last element in the chunk, inclusive
         pthread_create(&pthreads[i], NULL, qsort_enclosed, &range);
     }
     // join all the thread
@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
     }
 
     // sort value according to key
-    parallel_sort(fileSize/100, numThreads);
+    parallel_sort(input_kv, fileSize/100, numThreads);
 
     // write to output_data according to input_kv
     for (int i = 0; i < fileSize/100; i++) {

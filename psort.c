@@ -6,8 +6,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <math.h>
-
 struct key_value {
   int key;
   char* value; // start of 100 bytes
@@ -25,7 +23,6 @@ struct qsort_args {
 struct merge_args {
     struct run* run1;
     struct run* run2;
-    struct key_value *buffer;
 };
 
 // in each pass, merge multiple runs by 2
@@ -56,8 +53,9 @@ static int compare(const void *a, const void *b) {
 }
 
 // merge two sorted arrays
-void merge(struct run run1, struct run run2, struct key_value *buffer)
+void merge(struct run run1, struct run run2)
 {   
+    struct key_value *buffer = malloc(size_of_record * (run1.end - run1.start+ run2.end - run2.start + 2));
     int i = run1.start; // index of left array
     int j = run2.start; // index of right array
     int k = 0; // index of buffer
@@ -67,6 +65,7 @@ void merge(struct run run1, struct run run2, struct key_value *buffer)
         } else {
             buffer[k++] = input_kv[j++];
         }
+        // fprintf(stdout, "%d ", buffer[k-1].key);
     }
     while (i <= run1.end) {
         buffer[k++] = input_kv[i++];
@@ -74,58 +73,65 @@ void merge(struct run run1, struct run run2, struct key_value *buffer)
     while (j <= run2.end) {
         buffer[k++] = input_kv[j++];
     }
-    memcpy(input_kv + run1.start, buffer, (run1.start - run1.end + 1) * size_of_record);
-    memcpy(input_kv + run2.start, buffer + (run1.start - run1.end + 1), (run2.start - run2.end + 1) * size_of_record); 
+    memcpy(input_kv + run1.start, buffer, (run1.end - run1.start + 1) * size_of_record);
+    memcpy(input_kv + run2.start, buffer + (run1.end - run1.start + 1), (run2.end - run2.start + 1) * size_of_record); 
+    free(buffer);
 }
 
-void *merge_enclosed(void * args) {
+void * merge_enclosed(void * args) {
     struct merge_args* merge_args = (struct merge_args*) args;
     struct run* run1 = merge_args->run1;
     struct run* run2 = merge_args->run2;
-    struct key_value * buffer = merge_args->buffer;
-    merge(*run1, *run2, buffer);
+    // printf("Merging ");
+    // fprintf(stdout, "run1: %d - %d, ", run1->start, run1->end);
+    // fprintf(stdout, "run2: %d - %d\n", run2->start, run2->end);
+    merge(*run1, *run2);
+    fprintf(stdout, "merge_enclosed done.\n");
     return NULL;
 };
 
 
-struct pass* mergeAll(struct pass* pass) {
+void mergeAll(struct pass* pass) {
     int i;
-    struct run* runs = pass->runs;
-    int numRuns = pass->numRuns;
-    // prepare to return next pass
-    struct pass* next_pass = malloc(sizeof(struct pass));
-    next_pass->numRuns = (int)ceil((double)numRuns / 2);
-    fprintf(stdout, "numRuns for next pass: %d", (int)ceil((double)numRuns / 2));
-    struct run* runs_new = malloc(sizeof(struct run) * next_pass->numRuns);
-    next_pass->runs = runs_new;
-    // merge by 2
-    pthread_t* pthreads = malloc(sizeof(pthread_t) * numRuns / 2);
-    for(i = 0; i < numRuns-1; i += 2) {
-        fprintf(stdout, "merge %d and %d", i, i+1);
-        struct run run1 = runs[i];
-        struct run run2 = runs[i+1];
-        struct key_value *buffer = malloc(size_of_record * (run1.start - run1.end + run2.start - run2.end));
-        runs_new[i/2].start = run1.start;
-        runs_new[i/2].end = run2.end;
-        struct merge_args * merge_args = malloc(sizeof(merge_args));
-        merge_args->run1 = &run1;
-        merge_args->run2 = &run2;
-        merge_args->buffer = buffer;
-        pthread_create(&pthreads[i/2], NULL, merge_enclosed, (void *)merge_args);
+    // merge by 2, leave the last run if there is an odd number of runs
+    printf("Allocating %d pthreads\n", pass->numRuns / 2);
+    pthread_t* pthreads = malloc(pass->numRuns / 2 * sizeof(pthread_t));
+    // prepare an array of merge_args
+    struct merge_args * merge_args = malloc(pass->numRuns / 2 * sizeof(struct merge_args));
+
+    for (int j = 0; j < pass->numRuns / 2; j++) {
+        fprintf(stdout, "merge %d and %d\n", 2*j, 2*j+1);
+        merge_args[j].run1 = &pass->runs[2*j];
+        merge_args[j].run2 = &pass->runs[2*j+1];
+    }
+    // create threads
+    for(int j = 0; j < pass->numRuns / 2; j++) {
+        fprintf(stdout, "thread %d: merge_args: run1: %d - %d, run2: %d - %d\n", j, merge_args[j].run1->start, merge_args[j].run1->end, merge_args[j].run2->start, merge_args[j].run2->end);
+        pthread_create(&pthreads[j], NULL, merge_enclosed, &merge_args[j]);
     }
     // join all threads
-    for (int i = 0; i < numRuns/2; i++) {
-        pthread_join(pthreads[i], NULL);
+    for (int j = 0; j < pass->numRuns/2; j++) {
+        pthread_join(pthreads[j], NULL);
     }
-    // the last run might not have another run to merge with
-    if (i+1 == numRuns) {
-        runs_new[i/2] = runs[i];
-    }    
-    return next_pass;
+    printf("joined.\n");
+    // Update pass in one place
+    for (i = 0; i < pass->numRuns / 2; i++) {
+        pass->runs[i].start = pass->runs[2*i].start;
+        pass->runs[i].end = pass->runs[2*i+1].end;
+    }
+    if (pass -> numRuns % 2 == 1) {
+        pass->runs[pass->numRuns / 2].start = pass->runs[pass->numRuns-1].start;
+        pass->runs[pass->numRuns / 2].end = pass->runs[pass->numRuns-1].end;
+    }
+    pass->numRuns = pass->numRuns / 2 + pass->numRuns % 2;
+
+    free(pthreads);
+    free(merge_args);
+    printf("freed.\n");
 };
 
 void *qsort_enclosed(void *args) {
-    fprintf(stdout, "qsort_enclosed");
+    fprintf(stdout, "qsort_enclosed\n");
     struct qsort_args * range = (struct qsort_args *) args;
     struct key_value * base = range->base;
     size_t nel = range->nel;
@@ -133,54 +139,49 @@ void *qsort_enclosed(void *args) {
     return NULL;
 };
 
-// int get_merge_num_round(int numChunks) {
-//     int numChunks_new;
-//     int numRounds = 0;
-//     while (numChunks > 1) {
-//         numRounds++;
-//         numChunks_new = numChunks / 2;
-//         if (numChunks % 2) numChunks_new++;
-//         numChunks = numChunks_new;
-//     }
-// };
-
 // parallel_sort(fileSize/100, numThreads);
-void parallel_sort(struct key_value * input_kv, size_t numRecords, int numThreads)
+void parallel_sort(size_t numRecords, int numThreads)
 {
+    printf("==========================Parallel Sort==========================\n");
     int numRecords_per_chunk = numRecords / numThreads;
     int numRecords_last_chunk = numRecords - numRecords_per_chunk * (numThreads - 1);
     
     // prepare to return the pass for the merge stage
-    struct run * runs = malloc(sizeof(struct run) * numThreads);
+    struct run * runs = malloc(numThreads * sizeof(struct run));
     struct pass* pass = malloc(sizeof(struct pass));
     pass->numRuns = numThreads;
     pass->runs = runs;
     // assign each thread a chunk of data and use qsort to sort
     pthread_t * pthreads = malloc(sizeof(pthread_t) * numThreads);
+    struct qsort_args * range = malloc(sizeof(struct qsort_args) * numThreads);
     for (int i = 0; i < numThreads; i++) {
-        struct qsort_args range;
-        range.base = input_kv + i * numRecords_per_chunk; // address of the first element in the chunk
+        range[i].base = (void *) input_kv + i * numRecords_per_chunk * size_of_record; // address of the first element in the chunk
         runs[i].start = i * numRecords_per_chunk; // index of the first element in the chunk
-        range.nel = numRecords_per_chunk; // number of elements in the chunk
+        range[i].nel = numRecords_per_chunk; // number of elements in the chunk
         if (i == numThreads - 1) {
-            range.nel = numRecords_last_chunk;
+            range[i].nel = numRecords_last_chunk;
         }
-        runs[i].end = runs[i].start + range.nel; // index of the last element in the chunk, inclusive
-        pthread_create(&pthreads[i], NULL, qsort_enclosed, &range);
+        runs[i].end = runs[i].start + range[i].nel - 1; // index of the last element in the chunk, inclusive 
+    }
+    // run all the thread 
+    for (int i = 0; i < numThreads; i++) {
+        pthread_create(&pthreads[i], NULL, qsort_enclosed, &range[i]);
     }
     // join all the thread
     for (int i = 0; i < numThreads; i++) {
         pthread_join(pthreads[i], NULL);
     }
-    fprintf(stdout, "qsort joined.");
+    fprintf(stdout, "qsort joined.\n");
+    free(pthreads);
+    free(range);
     // merge the sorted chunks through a few passes
     while (pass->numRuns > 1) {
-        fprintf(stdout, "merge sort");
-        pass = mergeAll(pass);
+        fprintf(stdout, "--------------Another Pass: merge sort--------------\n");
+        mergeAll(pass);
     }
-    
+    free(runs);
+    free(pass);
 }
-
 
 // Your parallel sort (`psort`) will take three command-line arguments.
 // input                  The input file to read records for sort
@@ -189,12 +190,13 @@ void parallel_sort(struct key_value * input_kv, size_t numRecords, int numThread
 int main(int argc, char *argv[])
 {
     if (argc != 4) {
-        fprintf(stderr, "Usage: %s input output numThreads", argv[0]);
+        fprintf(stderr, "Usage: %s input output numThreads\n", argv[0]);
         exit(1);
     }
     char* input = argv[1];
     char* output = argv[2];
     int numThreads = atoi(argv[3]);
+    printf("numThreads: %d\n", numThreads);
 
     // open input file
     int input_fd = open(input, O_RDONLY);
@@ -256,24 +258,30 @@ int main(int argc, char *argv[])
     }
 
     // sort value according to key
-    parallel_sort(input_kv, fileSize/100, numThreads);
+    parallel_sort(fileSize/100, numThreads);
+    // qsort(input_kv, fileSize/100, size_of_record, compare);
 
+
+    // for (int i = 0; i < fileSize/100; i++) {
+    //     printf("%d\n", input_kv[i].key);
+    // }
+    // printf("writing out.\n");
     // write to output_data according to input_kv
     for (int i = 0; i < fileSize/100; i++) {
         memcpy(output_data + i*100, input_kv[i].value, 100);
     }
-    
+    // free(input_kv);
     // Sync output file to disk
     if (msync(output_data, fileSize, MS_SYNC) == -1) {
         perror("Error syncing output file to disk");
     }
-
     // Unmap memory and close files
     munmap(input_data, fileSize);
     munmap(output_data, fileSize);
     close(input_fd);
     close(output_fd);
 
+    printf("Return 0.\n");
+
     return 0;
-    
 }

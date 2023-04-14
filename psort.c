@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <pthread.h>
 struct key_value {
@@ -256,10 +257,22 @@ int main(int argc, char *argv[])
         input_kv[i].value = ptr;
         ptr += 100;
     }
+    
+    long start, end;
+    struct timeval timecheck;
+
+    gettimeofday(&timecheck, NULL);
+    start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
 
     // sort value according to key
     parallel_sort(fileSize/100, numThreads);
     // qsort(input_kv, fileSize/100, size_of_record, compare);
+    // simple qsort
+    // qsort(input_kv, fileSize/100, sizeof(struct key_value), compare);
+
+    gettimeofday(&timecheck, NULL);
+    end = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
 
 
     // for (int i = 0; i < fileSize/100; i++) {

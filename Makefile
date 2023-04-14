@@ -1,7 +1,7 @@
 .PHONY: clean
 
 psort: psort.c
-	gcc psort.c -Wall -Werror -pthread -O0 -o psort
+	gcc psort.c -Wall -Werror -pthread -O -o psort
 
 psort-gdb: psort.c
 	gcc psort.c -Wall -Werror -pthread -g -o psort

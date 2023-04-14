@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
     gettimeofday(&timecheck, NULL);
     end = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
 
-
+    printf("%ld milliseconds elapsed\n", (end - start));
 
     // for (int i = 0; i < fileSize/100; i++) {
     //     printf("%d\n", input_kv[i].key);
@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < fileSize/100; i++) {
         memcpy(output_data + i*100, input_kv[i].value, 100);
     }
-    // free(input_kv);
+    free(input_kv);
     // Sync output file to disk
     if (msync(output_data, fileSize, MS_SYNC) == -1) {
         perror("Error syncing output file to disk");

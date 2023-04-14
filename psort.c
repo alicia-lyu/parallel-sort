@@ -84,6 +84,7 @@ void *merge_enclosed(void * args) {
     struct run* run2 = merge_args->run2;
     struct key_value * buffer = merge_args->buffer;
     merge(*run1, *run2, buffer);
+    return NULL;
 };
 
 
@@ -149,6 +150,7 @@ void *qsort_enclosed(void *args) {
     struct key_value * base = range->base;
     size_t nel = range->nel;
     qsort(base, nel, size_of_record, compare);
+    return NULL;
 };
 
 // int get_merge_num_round(int numChunks) {

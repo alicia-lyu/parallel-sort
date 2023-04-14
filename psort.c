@@ -95,12 +95,13 @@ struct pass* mergeAll(struct pass* pass) {
     // prepare to return next pass
     struct pass* next_pass = malloc(sizeof(struct pass));
     next_pass->numRuns = (int)ceil((double)numRuns / 2);
-    printf("numRuns for next pass: %d", (int)ceil((double)numRuns / 2));
+    fprintf(stdout, "numRuns for next pass: %d", (int)ceil((double)numRuns / 2));
     struct run* runs_new = malloc(sizeof(struct run) * next_pass->numRuns);
     next_pass->runs = runs_new;
     // merge by 2
     pthread_t* pthreads = malloc(sizeof(pthread_t) * numRuns / 2);
     for(i = 0; i < numRuns-1; i += 2) {
+        fprintf(stdout, "merge %d and %d", i, i+1);
         struct run run1 = runs[i];
         struct run run2 = runs[i+1];
         struct key_value *buffer = malloc(size_of_record * (run1.start - run1.end + run2.start - run2.end));
@@ -123,29 +124,8 @@ struct pass* mergeAll(struct pass* pass) {
     return next_pass;
 };
 
-
-// void merge(struct key_value *input_kv, int start1, int mid, int end, struct key_value *buffer)
-// {
-//     int i = start; // index of left array
-//     int j = mid + 1; // index of right array
-//     int k = 0; // index of buffer
-//     while (i <= mid && j <= end) { 
-//         if (compare(input_kv + i, input_kv + j) < 0) {
-//             buffer[k++] = input_kv[i++];
-//         } else {
-//             buffer[k++] = input_kv[j++];
-//         }
-//     }
-//     while (i <= mid) {
-//         buffer[k++] = input_kv[i++];
-//     }
-//     while (j <= end) {
-//         buffer[k++] = input_kv[j++];
-//     }
-//     memcpy(input_kv + start * size_of_record, buffer, (end - start + 1) * size_of_record);
-// }
-
 void *qsort_enclosed(void *args) {
+    fprintf(stdout, "qsort_enclosed");
     struct qsort_args * range = (struct qsort_args *) args;
     struct key_value * base = range->base;
     size_t nel = range->nel;
@@ -192,9 +172,10 @@ void parallel_sort(struct key_value * input_kv, size_t numRecords, int numThread
     for (int i = 0; i < numThreads; i++) {
         pthread_join(pthreads[i], NULL);
     }
-    
+    fprintf(stdout, "qsort joined.");
     // merge the sorted chunks through a few passes
     while (pass->numRuns > 1) {
+        fprintf(stdout, "merge sort");
         pass = mergeAll(pass);
     }
     

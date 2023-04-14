@@ -1,6 +1,6 @@
-Fri Apr 14 11:22:21 AM CDT 2023
-gcc psort.c -Wall -Werror -pthread -O -o psort
+Fri Apr 14 11:33:18 AM CDT 2023
+make: 'psort' is up to date.
 10+0 records in
 10+0 records out
-10000000 bytes (10 MB, 9.5 MiB) copied, 0.0220865 s, 453 MB/s
+10000000 bytes (10 MB, 9.5 MiB) copied, 0.0222643 s, 449 MB/s
 Test 1

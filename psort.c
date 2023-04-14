@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <math.h>
 
 struct key_value {
   int key;
@@ -21,11 +22,24 @@ struct qsort_args {
     size_t nel;
 };
 
+struct merge_args {
+    struct run* run1;
+    struct run* run2;
+    struct key_value *buffer;
+};
+
 // in each pass, merge multiple runs by 2
 struct run {
     int start; 
     int end; 
     // end - start = numRecords_in_run
+};
+
+struct pass {
+    struct run *runs;
+    int numRuns;
+    // sem_t
+    // int* available_index;
 };
 
 //define compare function according to key converted to int
@@ -64,17 +78,48 @@ void merge(struct run run1, struct run run2, struct key_value *buffer)
     memcpy(input_kv + run2.start, buffer + (run1.start - run1.end + 1), (run2.start - run2.end + 1) * size_of_record); 
 }
 
+void *merge_enclosed(void * args) {
+    struct merge_args* merge_args = (struct merge_args*) args;
+    struct run* run1 = merge_args->run1;
+    struct run* run2 = merge_args->run2;
+    struct key_value * buffer = merge_args->buffer;
+    merge(*run1, *run2, buffer);
+};
 
-struct run* runs mergeAll(struct run * runs, int numRuns) {
+
+struct pass* mergeAll(struct pass* pass) {
     int i;
-    for(i = 0; i += 2; i < numRuns) {
-        struct run run1 = runs[i*2];
-        struct run run2 = runs[i*2+1];
+    struct run* runs = pass->runs;
+    int numRuns = pass->numRuns;
+    // prepare to return next pass
+    struct pass* next_pass = malloc(sizeof(struct pass));
+    next_pass->numRuns = (int)ceil((double)numRuns / 2);
+    printf("numRuns for next pass: %d", (int)ceil((double)numRuns / 2));
+    struct run* runs_new = malloc(sizeof(struct run) * next_pass->numRuns);
+    next_pass->runs = runs_new;
+    // merge by 2
+    pthread_t* pthreads = malloc(sizeof(pthread_t) * numRuns / 2);
+    for(i = 0; i < numRuns-1; i += 2) {
+        struct run run1 = runs[i];
+        struct run run2 = runs[i+1];
         struct key_value *buffer = malloc(size_of_record * (run1.start - run1.end + run2.start - run2.end));
-        // To-do: allocate pthread to do this
-        merge(run1, run2, buffer); // the last run might not have another run to merge with
+        runs_new[i/2].start = run1.start;
+        runs_new[i/2].end = run2.end;
+        struct merge_args * merge_args = malloc(sizeof(merge_args));
+        merge_args->run1 = &run1;
+        merge_args->run2 = &run2;
+        merge_args->buffer = buffer;
+        pthread_create(&pthreads[i/2], NULL, merge_enclosed, (void *)merge_args);
     }
-    // To-do: return runs (or modify runs in place?)
+    // join all threads
+    for (int i = 0; i < numRuns/2; i++) {
+        pthread_join(pthreads[i], NULL);
+    }
+    // the last run might not have another run to merge with
+    if (i+1 == numRuns) {
+        runs_new[i/2] = runs[i];
+    }    
+    return next_pass;
 };
 
 
@@ -99,12 +144,12 @@ struct run* runs mergeAll(struct run * runs, int numRuns) {
 //     memcpy(input_kv + start * size_of_record, buffer, (end - start + 1) * size_of_record);
 // }
 
-void qsort_enclosed(void *args) {
+void *qsort_enclosed(void *args) {
     struct qsort_args * range = (struct qsort_args *) args;
     struct key_value * base = range->base;
     size_t nel = range->nel;
     qsort(base, nel, size_of_record, compare);
-}
+};
 
 // int get_merge_num_round(int numChunks) {
 //     int numChunks_new;
@@ -123,9 +168,12 @@ void parallel_sort(struct key_value * input_kv, size_t numRecords, int numThread
     int numRecords_per_chunk = numRecords / numThreads;
     int numRecords_last_chunk = numRecords - numRecords_per_chunk * (numThreads - 1);
     
-    // assign each thread a chunk of data and use qsort to sort
+    // prepare to return the pass for the merge stage
     struct run * runs = malloc(sizeof(struct run) * numThreads);
-    int numRuns = numThreads;
+    struct pass* pass = malloc(sizeof(struct pass));
+    pass->numRuns = numThreads;
+    pass->runs = runs;
+    // assign each thread a chunk of data and use qsort to sort
     pthread_t * pthreads = malloc(sizeof(pthread_t) * numThreads);
     for (int i = 0; i < numThreads; i++) {
         struct qsort_args range;
@@ -143,9 +191,9 @@ void parallel_sort(struct key_value * input_kv, size_t numRecords, int numThread
         pthread_join(pthreads[i], NULL);
     }
     
-    // To-do: merge the sorted chunks in the parent thread through a few passes
-    while (numRuns > 1) {
-        // one pass
+    // merge the sorted chunks through a few passes
+    while (pass->numRuns > 1) {
+        pass = mergeAll(pass);
     }
     
 }

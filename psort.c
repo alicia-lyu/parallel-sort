@@ -87,7 +87,7 @@ void * merge_enclosed(void * args) {
     // fprintf(stdout, "run1: %d - %d, ", run1->start, run1->end);
     // fprintf(stdout, "run2: %d - %d\n", run2->start, run2->end);
     merge(*run1, *run2);
-    fprintf(stdout, "merge_enclosed done.\n");
+    // fprintf(stdout, "merge_enclosed done.\n");
     return NULL;
 };
 
@@ -95,26 +95,26 @@ void * merge_enclosed(void * args) {
 void mergeAll(struct pass* pass) {
     int i;
     // merge by 2, leave the last run if there is an odd number of runs
-    printf("Allocating %d pthreads\n", pass->numRuns / 2);
+    // printf("Allocating %d pthreads\n", pass->numRuns / 2);
     pthread_t* pthreads = malloc(pass->numRuns / 2 * sizeof(pthread_t));
     // prepare an array of merge_args
     struct merge_args * merge_args = malloc(pass->numRuns / 2 * sizeof(struct merge_args));
 
     for (int j = 0; j < pass->numRuns / 2; j++) {
-        fprintf(stdout, "merge %d and %d\n", 2*j, 2*j+1);
+        // fprintf(stdout, "merge %d and %d\n", 2*j, 2*j+1);
         merge_args[j].run1 = &pass->runs[2*j];
         merge_args[j].run2 = &pass->runs[2*j+1];
     }
     // create threads
     for(int j = 0; j < pass->numRuns / 2; j++) {
-        fprintf(stdout, "thread %d: merge_args: run1: %d - %d, run2: %d - %d\n", j, merge_args[j].run1->start, merge_args[j].run1->end, merge_args[j].run2->start, merge_args[j].run2->end);
+        // fprintf(stdout, "thread %d: merge_args: run1: %d - %d, run2: %d - %d\n", j, merge_args[j].run1->start, merge_args[j].run1->end, merge_args[j].run2->start, merge_args[j].run2->end);
         pthread_create(&pthreads[j], NULL, merge_enclosed, &merge_args[j]);
     }
     // join all threads
     for (int j = 0; j < pass->numRuns/2; j++) {
         pthread_join(pthreads[j], NULL);
     }
-    printf("joined.\n");
+    // printf("joined.\n");
     // Update pass in one place
     for (i = 0; i < pass->numRuns / 2; i++) {
         pass->runs[i].start = pass->runs[2*i].start;
@@ -128,11 +128,11 @@ void mergeAll(struct pass* pass) {
 
     free(pthreads);
     free(merge_args);
-    printf("freed.\n");
+    // printf("freed.\n");
 };
 
 void *qsort_enclosed(void *args) {
-    fprintf(stdout, "qsort_enclosed\n");
+    // fprintf(stdout, "qsort_enclosed\n");
     struct qsort_args * range = (struct qsort_args *) args;
     struct key_value * base = range->base;
     size_t nel = range->nel;
@@ -143,7 +143,7 @@ void *qsort_enclosed(void *args) {
 // parallel_sort(fileSize/100, numThreads);
 void parallel_sort(size_t numRecords, int numThreads)
 {
-    printf("==========================Parallel Sort==========================\n");
+    // printf("==========================Parallel Sort==========================\n");
     int numRecords_per_chunk = numRecords / numThreads;
     int numRecords_last_chunk = numRecords - numRecords_per_chunk * (numThreads - 1);
     
@@ -172,12 +172,12 @@ void parallel_sort(size_t numRecords, int numThreads)
     for (int i = 0; i < numThreads; i++) {
         pthread_join(pthreads[i], NULL);
     }
-    fprintf(stdout, "qsort joined.\n");
+    // fprintf(stdout, "qsort joined.\n");
     free(pthreads);
     free(range);
     // merge the sorted chunks through a few passes
     while (pass->numRuns > 1) {
-        fprintf(stdout, "--------------Another Pass: merge sort--------------\n");
+        // fprintf(stdout, "--------------Another Pass: merge sort--------------\n");
         mergeAll(pass);
     }
     free(runs);
@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
     char* input = argv[1];
     char* output = argv[2];
     int numThreads = atoi(argv[3]);
-    printf("numThreads: %d\n", numThreads);
+    printf("numThreads: %d", numThreads);
 
     // open input file
     int input_fd = open(input, O_RDONLY);
@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
     gettimeofday(&timecheck, NULL);
     end = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
 
-    printf("%ld milliseconds elapsed\n", (end - start));
+    printf(" %ld milliseconds elapsed\n", (end - start));
 
     // for (int i = 0; i < fileSize/100; i++) {
     //     printf("%d\n", input_kv[i].key);
@@ -293,8 +293,6 @@ int main(int argc, char *argv[])
     munmap(output_data, fileSize);
     close(input_fd);
     close(output_fd);
-
-    printf("Return 0.\n");
 
     return 0;
 }

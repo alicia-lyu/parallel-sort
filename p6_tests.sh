@@ -195,7 +195,7 @@ cd /nobackup/$try
 make_rcheck | gcc -Wall -Werror -x c -o rcheck - &>> $LOG &
 spinner $! compiling test file
 
-sizes=(0 10 100 1000 4000)
+sizes=(0 1000 1000 1000 1000)
 
 for test in {1..4}
 do
@@ -204,7 +204,7 @@ do
 
 	echo "Test $test" >> $LOG
 	in=test$test.img
-	for threads in {2..16..2}
+	for threads in {2..32..2}
 	do
 		./psort $in out $threads &>> $LOG &
 		spinner $! TEST $test $threads threads

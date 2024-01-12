@@ -9,8 +9,8 @@ Technical Specifications
 
 ## Usage
 
-- Compilation: gcc -Wall -Werror -pthread -O psort.c -o psort
-- Execution Example: ./psort input_file output_file num_threads
+- Compilation: `gcc -Wall -Werror -pthread -O psort.c -o psort`
+- Execution Example: `./psort input_file output_file num_threads`
 
 Developed and tested on Linux using multi-processor machines.
 

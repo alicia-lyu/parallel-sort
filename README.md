@@ -1,9 +1,17 @@
-READ ME
+# Parallel Sorting
 
-* group number: 21
-* name: Alicia Lyu, Shuyao Li
-* cs login: wenhui, shuyaol
-* wisc ID: wlyu27, sli796
-* email: wlyu27@wisc.edu, sli796@wisc.edu
-* section: Tu Th 9:30-10:45 AM
-* status of implementation: all tests passed。
+This C program utilizes multiple threads for efficient data sorting.
+
+Technical Specifications
+
+- Concurrency: Linux pthreads
+- Sorting Algorithm: Quick Sort and Merge Sort
+
+## Usage
+
+- Compilation: gcc -Wall -Werror -pthread -O psort.c -o psort
+- Execution Example: ./psort input_file output_file num_threads
+
+Developed and tested on Linux using multi-processor machines.
+
+Acknowledgements: Thanks to CS 537 staff at University of Wisconsin–Madison for providing project description and test cases.

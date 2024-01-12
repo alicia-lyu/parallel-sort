@@ -36,8 +36,6 @@ struct run {
 struct pass {
     struct run *runs;
     int numRuns;
-    // sem_t
-    // int* available_index;
 };
 
 //define compare function according to key converted to int
@@ -79,6 +77,7 @@ void merge(struct run run1, struct run run2)
     free(buffer);
 }
 
+// enclosed function of merge that can be called by pthread_create
 void * merge_enclosed(void * args) {
     struct merge_args* merge_args = (struct merge_args*) args;
     struct run* run1 = merge_args->run1;
@@ -91,17 +90,16 @@ void * merge_enclosed(void * args) {
     return NULL;
 };
 
-
+// In each pass, allocate threads to merge runs by 2 in parallel
+// There is room for improvement, as parallelism is limited in each pass
 void mergeAll(struct pass* pass) {
     int i;
     // merge by 2, leave the last run if there is an odd number of runs
-    // printf("Allocating %d pthreads\n", pass->numRuns / 2);
     pthread_t* pthreads = malloc(pass->numRuns / 2 * sizeof(pthread_t));
     // prepare an array of merge_args
     struct merge_args * merge_args = malloc(pass->numRuns / 2 * sizeof(struct merge_args));
 
     for (int j = 0; j < pass->numRuns / 2; j++) {
-        // fprintf(stdout, "merge %d and %d\n", 2*j, 2*j+1);
         merge_args[j].run1 = &pass->runs[2*j];
         merge_args[j].run2 = &pass->runs[2*j+1];
     }
@@ -114,8 +112,7 @@ void mergeAll(struct pass* pass) {
     for (int j = 0; j < pass->numRuns/2; j++) {
         pthread_join(pthreads[j], NULL);
     }
-    // printf("joined.\n");
-    // Update pass in one place
+    // Update pass in place, preparing for the next pass
     for (i = 0; i < pass->numRuns / 2; i++) {
         pass->runs[i].start = pass->runs[2*i].start;
         pass->runs[i].end = pass->runs[2*i+1].end;
@@ -128,9 +125,9 @@ void mergeAll(struct pass* pass) {
 
     free(pthreads);
     free(merge_args);
-    // printf("freed.\n");
 };
 
+// enclosed function of qsort that can be called by pthread_create
 void *qsort_enclosed(void *args) {
     // fprintf(stdout, "qsort_enclosed\n");
     struct qsort_args * range = (struct qsort_args *) args;
@@ -140,19 +137,15 @@ void *qsort_enclosed(void *args) {
     return NULL;
 };
 
-// parallel_sort(fileSize/100, numThreads);
 void parallel_sort(size_t numRecords, int numThreads)
 {
-    // printf("==========================Parallel Sort==========================\n");
+    // ---------------------- stage 1: qsort ----------------------
+    // divide data to chunks for qsort
     int numRecords_per_chunk = numRecords / numThreads;
     int numRecords_last_chunk = numRecords - numRecords_per_chunk * (numThreads - 1);
     
-    // prepare to return the pass for the merge stage
-    struct run * runs = malloc(numThreads * sizeof(struct run));
-    struct pass* pass = malloc(sizeof(struct pass));
-    pass->numRuns = numThreads;
-    pass->runs = runs;
-    // assign each thread a chunk of data and use qsort to sort
+    struct run * runs = malloc(numThreads * sizeof(struct run));    
+    
     pthread_t * pthreads = malloc(sizeof(pthread_t) * numThreads);
     struct qsort_args * range = malloc(sizeof(struct qsort_args) * numThreads);
     for (int i = 0; i < numThreads; i++) {
@@ -164,7 +157,7 @@ void parallel_sort(size_t numRecords, int numThreads)
         }
         runs[i].end = runs[i].start + range[i].nel - 1; // index of the last element in the chunk, inclusive 
     }
-    // run all the thread 
+    // allocate threads to qsort
     for (int i = 0; i < numThreads; i++) {
         pthread_create(&pthreads[i], NULL, qsort_enclosed, &range[i]);
     }
@@ -172,12 +165,15 @@ void parallel_sort(size_t numRecords, int numThreads)
     for (int i = 0; i < numThreads; i++) {
         pthread_join(pthreads[i], NULL);
     }
-    // fprintf(stdout, "qsort joined.\n");
     free(pthreads);
     free(range);
+
+    // ---------------------- stage 1: merge sort ----------------------
+    struct pass* pass = malloc(sizeof(struct pass));
+    pass->numRuns = numThreads;
+    pass->runs = runs;
     // merge the sorted chunks through a few passes
     while (pass->numRuns > 1) {
-        // fprintf(stdout, "--------------Another Pass: merge sort--------------\n");
         mergeAll(pass);
     }
     free(runs);
